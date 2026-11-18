@@ -2,43 +2,44 @@
 from apps.edge_runtime.handlers.opencv_preview import OpenCVPreview
 from core.perception.engine import PerceptionEngine
 from core.perception.factory import create_detector
+from core.scene.pipeline import ScenePipeline
 from core.sensors.camera import CameraSensor
 from core.tracking.engine import TrackingEngine
 from core.tracking.iou_tracker import IoUTracker
-from core.tracking.pipeline import PerceptionTrackingPipeline
 from runtime.frame_pipeline import FramePipeline
+from core.spatial.depth.midas import MiDaSSmallEstimator
+
+depth_estimator = MiDaSSmallEstimator()
 
 
 def main() -> None:
-    # Initialize the object detection model.
     detector = create_detector(
         model="torchvision-ssd",
         confidence_threshold=0.5,
     )
 
-    # Initialize perception and tracking engines.
     perception = PerceptionEngine(detector)
+
     tracker = IoUTracker(
         iou_threshold=0.3,
         max_age=5,
         min_hits=2,
     )
+
     tracking = TrackingEngine(tracker)
 
-    # Combine perception and tracking.
-    processor = PerceptionTrackingPipeline(
+    scene_pipeline = ScenePipeline(
         perception=perception,
         tracking=tracking,
+        depth_estimator=depth_estimator,
     )
 
-    # Initialize camera and visualization.
     camera = CameraSensor(source=0)
     preview = OpenCVPreview()
 
-    # Create the generic frame pipeline.
     pipeline = FramePipeline(
         camera=camera,
-        processor=processor.process,
+        processor=scene_pipeline.process,
         result_handler=preview,
     )
 
@@ -47,7 +48,9 @@ def main() -> None:
     finally:
         preview.close()
 
-    print("\nVIE pipeline completed")
+    print("\nVIE scene pipeline completed")
+    print("Detector:", perception.model_name)
+    print("Tracker:", tracking.tracker_name)
     print("Frames:", stats.frames_processed)
     print(
         "Average processing time:",

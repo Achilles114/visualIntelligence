@@ -1,12 +1,12 @@
 
 import cv2
 
-from core.tracking.models import TrackBatch
+from core.scene.models import SceneSnapshot
 from runtime.frame_pipeline import PipelineOutput
 
 
 class OpenCVPreview:
-    """Displays video frames with tracked objects and persistent IDs."""
+    """Displays the current scene with object and event information."""
 
     def __init__(
         self,
@@ -16,11 +16,12 @@ class OpenCVPreview:
 
     def __call__(
         self,
-        output: PipelineOutput[TrackBatch],
+        output: PipelineOutput[SceneSnapshot],
     ) -> bool:
         display = output.frame.image.copy()
+        scene = output.result
 
-        for track in output.result.tracks:
+        for track in scene.tracks:
             box = track.bbox
 
             x1, y1 = int(box.x1), int(box.y1)
@@ -50,29 +51,48 @@ class OpenCVPreview:
                 2,
             )
 
-        # Display tracking and performance information.
+        object_summary = ", ".join(
+            f"{label}: {count}"
+            for label, count in scene.object_counts
+        )
+
         cv2.putText(
             display,
-            (
-                f"Tracked objects: {len(output.result.tracks)} | "
-                f"Processing: {output.processing_ms:.1f} ms"
-            ),
+            f"Objects: {scene.total_objects} | {object_summary}",
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
+            0.55,
             (0, 0, 255),
             2,
         )
 
         cv2.putText(
             display,
-            f"Frame: {output.frame.frame_id}",
+            f"Frame: {scene.frame_id} | Processing: "
+            f"{output.processing_ms:.1f} ms",
             (10, 60),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
+            0.55,
             (255, 255, 0),
             2,
         )
+
+        # Show the latest scene events.
+        for index, event in enumerate(scene.events[-3:]):
+            message = (
+                f"{event.event_type.value}: "
+                f"{event.label} (ID {event.track_id})"
+            )
+
+            cv2.putText(
+                display,
+                message,
+                (10, 95 + index * 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255, 200, 0),
+                1,
+            )
 
         cv2.imshow(self.window_name, display)
 

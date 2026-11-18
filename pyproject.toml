@@ -10,6 +10,7 @@ dependencies = [
     "opencv-python>=5.0.0.93",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.3",
+    "timm>=1.0.31",
     "torch>=2.14.1",
     "torchvision>=0.29.1",
     "uvicorn[standard]>=0.54.0",
